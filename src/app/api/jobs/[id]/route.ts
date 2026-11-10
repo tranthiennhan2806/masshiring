@@ -1,11 +1,14 @@
+// src/app/api/jobs/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getJobById, updateJob, closeJob, deleteJob } from "@/lib/jobs";
 import { sendDiscordNotification } from "@/lib/discord";
 
-/** GET — public, ai cũng xem được (dùng cho trang detail nếu cần) */
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(_req: NextRequest, { params }: RouteContext) {
     try {
-        const job = await getJobById(params.id);
+        const { id } = await params;
+        const job = await getJobById(id);
         if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
         return NextResponse.json({ job });
     } catch (err: any) {
@@ -13,28 +16,26 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     }
 }
 
-/** PATCH — cần auth, sửa job */
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: RouteContext) {
     try {
+        const { id } = await params;
         const body = await req.json();
 
-        // Chỉ chuyển quantity sang number khi client có gửi và không rỗng
         const quantity =
             body.quantity !== undefined && body.quantity !== null && body.quantity !== ""
                 ? Number(body.quantity)
                 : undefined;
 
-        // Nếu client gửi quantity nhưng không phải số hợp lệ -> 400
         if (quantity !== undefined && Number.isNaN(quantity)) {
             return NextResponse.json({ error: "quantity must be a number" }, { status: 400 });
         }
 
-        const updated = await updateJob(params.id, {
+        const updated = await updateJob(id, {
             title: body.title,
             salary: body.salary,
             location: body.location,
             type: body.type,
-            quantity, // number | undefined
+            quantity,
             deadline: body.deadline,
             industry: body.industry,
             description: body.description,
@@ -47,7 +48,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         });
         if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        // Notify Discord (optional)
         await sendDiscordNotification(
             "✏️ Tin tuyển dụng đã cập nhật",
             [
@@ -65,11 +65,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 }
 
-/** DELETE — cần auth, đóng job (soft delete) hoặc xoá cứng nếu ?hard=1 */
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: RouteContext) {
     try {
+        const { id } = await params;
         const hard = req.nextUrl.searchParams.get("hard") === "1";
-        const job = hard ? await deleteJob(params.id) : await closeJob(params.id);
+        const job = hard ? await deleteJob(id) : await closeJob(id);
         if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
         await sendDiscordNotification(
