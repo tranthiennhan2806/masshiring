@@ -1,9 +1,20 @@
-// src/app/api/admin/logout/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { COOKIE_NAME } from "@/lib/auth";
 
-export async function POST() {
-  // Với mô hình localStorage, logout làm hoàn toàn ở client
-  // (xóa admin_token, admin_user khỏi localStorage).
-  // Endpoint này chỉ để tương thích nếu client gọi.
-  return NextResponse.json({ ok: true });
+export async function POST(req: NextRequest) {
+  const accept = req.headers.get("accept") || "";
+  const wantsHtml = accept.includes("text/html");
+
+  if (wantsHtml) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/admin/login";
+    url.search = "";
+    const res = NextResponse.redirect(url, 303);
+    res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+    return res;
+  }
+
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+  return res;
 }

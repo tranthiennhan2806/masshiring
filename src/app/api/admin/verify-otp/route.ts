@@ -1,4 +1,3 @@
-// src/app/api/admin/verify-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { verifyOtp } from "@/lib/otp-store";
 import { createSession, COOKIE_NAME } from "@/lib/auth";
@@ -10,10 +9,7 @@ export async function POST(req: NextRequest) {
         const code: string = String(body.code || "").replace(/\D/g, "");
 
         if (!challengeId || code.length !== 6) {
-            return NextResponse.json(
-                { error: "Invalid input", reason: "bad_input" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Invalid input", reason: "bad_input" }, { status: 400 });
         }
 
         const result = verifyOtp(challengeId, code);
@@ -24,10 +20,12 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const token = await createSession(result.username);
+        const token = await createSession(result.username, result.name, result.role);
 
-        // Set cookie trực tiếp trên response — chắc chắn browser nhận được
-        const res = NextResponse.json({ ok: true, user: { username: result.username } });
+        const res = NextResponse.json({
+            ok: true,
+            user: { username: result.username, name: result.name, role: result.role },
+        });
         res.cookies.set(COOKIE_NAME, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
