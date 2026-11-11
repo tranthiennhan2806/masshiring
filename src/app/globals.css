@@ -1,8 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap");
 
 :root {
   --brand: #e11d48;
@@ -19,12 +19,15 @@ body {
   .btn-primary {
     @apply inline-flex items-center justify-center rounded-full bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2;
   }
+
   .btn-secondary {
     @apply inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2;
   }
+
   .section-title {
     @apply text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl;
   }
+
   .container-main {
     @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
   }
