@@ -1,21 +1,20 @@
-// src/app/api/admin/leads/[type]/[row]/route.ts
-import { deleteLead, isValidLeadType, updateLead } from "@/lib/leads";
 import { NextRequest, NextResponse } from "next/server";
+import { updateLead, deleteLead, isValidLeadType } from "@/lib/leads";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { type: string; row: string } }
-) {
+type RouteContext = { params: Promise<{ type: string; row: string }> };
+
+export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
-    if (!isValidLeadType(params.type)) {
+    const { type, row } = await context.params;
+    if (!isValidLeadType(type)) {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
-    const rowNumber = Number(params.row);
+    const rowNumber = Number(row);
     if (!Number.isInteger(rowNumber) || rowNumber < 2) {
       return NextResponse.json({ error: "Invalid row" }, { status: 400 });
     }
     const patch = await req.json();
-    const ok = await updateLead(params.type, rowNumber, patch);
+    const ok = await updateLead(type, rowNumber, patch);
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
@@ -24,19 +23,17 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { type: string; row: string } }
-) {
+export async function DELETE(_req: NextRequest, context: RouteContext) {
   try {
-    if (!isValidLeadType(params.type)) {
+    const { type, row } = await context.params;
+    if (!isValidLeadType(type)) {
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
-    const rowNumber = Number(params.row);
+    const rowNumber = Number(row);
     if (!Number.isInteger(rowNumber) || rowNumber < 2) {
       return NextResponse.json({ error: "Invalid row" }, { status: 400 });
     }
-    const ok = await deleteLead(params.type, rowNumber);
+    const ok = await deleteLead(type, rowNumber);
     if (!ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
