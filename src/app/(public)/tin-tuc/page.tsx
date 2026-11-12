@@ -1,42 +1,31 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export const metadata = {
-  title: "Tin tức Mass Hiring",
-  description: "Bài viết về tuyển dụng lao động phổ thông, HR Freelancer, phí tuyển dụng theo ngày công.",
+type Post = {
+  id: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  imageUrl?: string;
+  date: string;
 };
 
-const posts = [
-  {
-    slug: "tuyen-lao-dong-thoi-vu-tet",
-    title: "Tuyển lao động thời vụ cao điểm Tết: lập kế hoạch từ sớm",
-    excerpt: "Cách doanh nghiệp chuẩn bị nguồn lao động thời vụ trước Tết Nguyên đán để tránh thiếu hụt.",
-    date: "12/2026",
-    category: "Doanh nghiệp",
-  },
-  {
-    slug: "tinh-phi-tuyen-dung-theo-ngay-cong",
-    title: "Tính phí tuyển dụng theo ngày công: doanh nghiệp trả gì, khi nào?",
-    excerpt: "Giải thích mô hình trả phí theo ngày công thực làm, so với phí tuyển 1 lần truyền thống.",
-    date: "12/2026",
-    category: "Doanh nghiệp",
-  },
-  {
-    slug: "hr-freelancer-la-gi",
-    title: "HR Freelancer là gì? Cách làm tuyển dụng online có thu nhập",
-    excerpt: "Giới thiệu mô hình HR Freelancer của Mass Hiring: chỉ cần smartphone, đào tạo miễn phí.",
-    date: "12/2026",
-    category: "HR Freelancer",
-  },
-  {
-    slug: "tuyen-nhan-vien-kho-tmdt",
-    title: "Tuyển nhân viên kho TMĐT mùa cao điểm: tiêu chí và cách giữ người 03 ngày đầu",
-    excerpt: "Kinh nghiệm tuyển và giữ chân nhân viên kho trong mùa cao điểm thương mại điện tử.",
-    date: "12/2026",
-    category: "Doanh nghiệp",
-  },
-];
-
 export default function TinTucPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/posts")
+      .then((r) => r.json())
+      .then((d) => {
+        setPosts(d.posts || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
   return (
     <section className="py-16">
       <div className="container-main">
@@ -45,39 +34,49 @@ export default function TinTucPage() {
           Bài viết dành cho doanh nghiệp, đối tác cung ứng và HR Freelancer.
         </p>
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          {posts.map((post) => (
-            <article
-              key={post.slug}
-              className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200 transition hover:ring-brand/30"
-            >
-              <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span className="rounded-full bg-brand/10 px-2.5 py-0.5 font-medium text-brand">
-                  {post.category}
-                </span>
-                <span>{post.date}</span>
-              </div>
-              <h2 className="mt-3 text-lg font-semibold text-gray-900">
-                <Link href={`/tin-tuc/${post.slug}`} className="hover:text-brand">
-                  {post.title}
-                </Link>
-              </h2>
-              <p className="mt-2 text-sm text-gray-600">{post.excerpt}</p>
-              <Link
-                href={`/tin-tuc/${post.slug}`}
-                className="mt-4 inline-block text-sm font-medium text-brand hover:underline"
+        {loading ? (
+          <div className="mt-10 text-center text-gray-500">Đang tải bài viết...</div>
+        ) : posts.length === 0 ? (
+          <div className="mt-10 rounded-2xl bg-gray-50 p-8 text-center text-gray-500">
+            Chưa có bài viết nào.
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {posts.map((post) => (
+              <article
+                key={post.id}
+                className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-brand/30 hover:shadow-md"
               >
-                Đọc tiếp →
-              </Link>
-            </article>
-          ))}
-        </div>
-
-        <div className="mt-12 rounded-2xl bg-gray-50 p-8 text-center">
-          <p className="text-gray-600">
-            Nội dung bài viết đầy đủ đang được hoàn thiện theo kế hoạch 12 bài trong 3 tháng.
-          </p>
-        </div>
+                {post.imageUrl && (
+                  <div className="aspect-[16/9] w-full bg-gray-100 overflow-hidden">
+                    <img src={post.imageUrl} alt={post.title} className="h-full w-full object-cover transition hover:scale-105" />
+                  </div>
+                )}
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="rounded-full bg-brand/10 px-2.5 py-0.5 font-medium text-brand">
+                      {post.category}
+                    </span>
+                    <span>{post.date}</span>
+                  </div>
+                  <h2 className="mt-3 text-lg font-semibold text-gray-900">
+                    {/* Chú ý: href trỏ đến post.id (chính là slug) */}
+                    <Link href={`/tin-tuc/${post.id}`} className="hover:text-brand">
+                      {post.title}
+                    </Link>
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-600 line-clamp-3 flex-1">{post.excerpt}</p>
+                  <Link
+                    href={`/tin-tuc/${post.id}`}
+                    className="mt-4 inline-block text-sm font-medium text-brand hover:underline"
+                  >
+                    Đọc tiếp →
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

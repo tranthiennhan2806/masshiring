@@ -14,24 +14,18 @@ const JOBS_HEADERS = [
   "Deadline",
   "Industry",
   "Description",
+  "ImageUrl", // <-- Thêm cột này
   "Status",
   "CreatedAt",
 ];
 
-/* -------------------------------------------------------------------------- */
-/*  Helpers                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** Lấy googleapis client + spreadsheetId từ env (dùng getAuth trong google-sheets.ts) */
 async function getSheetsClient() {
-  // Import động để tránh circular nếu google-sheets.ts cũng import jobs.ts
   const { getAuth } = await import("./google-sheets");
   const { auth, spreadsheetId } = getAuth();
   const sheets = google.sheets({ version: "v4", auth });
   return { sheets, spreadsheetId };
 }
 
-/** Map row (mảng string) -> Job object */
 function rowToJob(row: any[]): Job {
   return {
     id: String(row[0] ?? ""),
@@ -43,12 +37,12 @@ function rowToJob(row: any[]): Job {
     deadline: String(row[6] ?? ""),
     industry: String(row[7] ?? ""),
     description: String(row[8] ?? ""),
-    status: row[9] === "closed" ? "closed" : "active",
-    createdAt: String(row[10] ?? ""),
+    imageUrl: String(row[9] ?? ""), // <-- Map cột ImageUrl
+    status: row[10] === "closed" ? "closed" : "active",
+    createdAt: String(row[11] ?? ""),
   };
 }
 
-/** Map Job object -> row (đúng thứ tự JOBS_HEADERS) */
 function jobToRow(j: Job): (string | number)[] {
   return [
     j.id,
@@ -60,23 +54,19 @@ function jobToRow(j: Job): (string | number)[] {
     j.deadline,
     j.industry,
     j.description,
+    j.imageUrl || "", // <-- Map cột ImageUrl
     j.status,
     j.createdAt,
   ];
 }
 
-/** Đảm bảo sheet Jobs tồn tại + có header */
 export async function ensureJobsSheet() {
   await ensureHeaders(JOBS_SHEET, JOBS_HEADERS);
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Read                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export async function getAllJobs(): Promise<Job[]> {
   await ensureJobsSheet();
-  const rows = await getSheetData(JOBS_SHEET, "A2:K");
+  const rows = await getSheetData(JOBS_SHEET, "A2:L"); // <-- Sửa thành L
   return (rows as any[][]).filter((r) => r[0]).map(rowToJob);
 }
 
@@ -88,10 +78,6 @@ export async function getJobById(id?: string): Promise<Job | null> {
   if (!id) return null;
   return (await getAllJobs()).find((j) => j.id === id) ?? null;
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Create                                                                     */
-/* -------------------------------------------------------------------------- */
 
 export function generateJobId(title: string): string {
   const slug = title
@@ -117,6 +103,7 @@ export async function createJob(input: JobFormInput): Promise<Job> {
     deadline: input.deadline,
     industry: input.industry,
     description: input.description,
+    imageUrl: input.imageUrl || "", // <-- Thêm
     status: input.status ?? "active",
     createdAt: new Date().toISOString(),
   };
@@ -124,16 +111,11 @@ export async function createJob(input: JobFormInput): Promise<Job> {
   return job;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Update / Delete                                                            */
-/* -------------------------------------------------------------------------- */
-
-/** Đọc row index (1-based) của id trong sheet Jobs. Trả null nếu không thấy. */
 async function findRowIndex(id: string): Promise<number | null> {
-  const rows = await getSheetData(JOBS_SHEET, "A2:K");
+  const rows = await getSheetData(JOBS_SHEET, "A2:L"); // <-- Sửa thành L
   const arr = (rows as any[][]).filter((r) => r[0]);
   const idx = arr.findIndex((r) => String(r[0]) === id);
-  return idx === -1 ? null : idx + 2; // +1 header, +1 vì data bắt đầu từ A2
+  return idx === -1 ? null : idx + 2;
 }
 
 export async function updateJob(
@@ -157,26 +139,26 @@ export async function updateJob(
     ...(patch.deadline !== undefined && { deadline: patch.deadline }),
     ...(patch.industry !== undefined && { industry: patch.industry }),
     ...(patch.description !== undefined && { description: patch.description }),
+    ...(patch.imageUrl !== undefined && { imageUrl: patch.imageUrl }), // <-- Thêm
     ...(patch.status !== undefined && { status: patch.status }),
   };
 
   const { sheets, spreadsheetId } = await getSheetsClient();
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${JOBS_SHEET}!A${rowNumber}:K${rowNumber}`,
+    range: `${JOBS_SHEET}!A${rowNumber}:L${rowNumber}`, // <-- Sửa thành L
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [jobToRow(updated)] },
   });
   return updated;
 }
 
-/** Đóng job (soft delete) */
 export async function closeJob(id: string): Promise<Job | null> {
   return updateJob(id, { status: "closed" });
 }
 
-/** Xoá cứng — xoá row khỏi sheet */
 export async function deleteJob(id: string): Promise<Job | null> {
+  // ... (giữ nguyên như cũ)
   await ensureJobsSheet();
   const rowNumber = await findRowIndex(id);
   if (!rowNumber) return null;
@@ -185,8 +167,6 @@ export async function deleteJob(id: string): Promise<Job | null> {
   if (!current) return null;
 
   const { sheets, spreadsheetId } = await getSheetsClient();
-
-  // Lấy sheetId (gid) của sheet Jobs
   const meta = await sheets.spreadsheets.get({
     spreadsheetId,
     fields: "sheets.properties",
@@ -208,7 +188,7 @@ export async function deleteJob(id: string): Promise<Job | null> {
             range: {
               sheetId,
               dimension: "ROWS",
-              startIndex: rowNumber - 1, // 0-based
+              startIndex: rowNumber - 1,
               endIndex: rowNumber,
             },
           },

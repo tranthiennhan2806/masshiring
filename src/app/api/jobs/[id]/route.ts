@@ -1,4 +1,3 @@
-// src/app/api/jobs/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getJobById, updateJob, closeJob, deleteJob } from "@/lib/jobs";
 import { sendDiscordNotification } from "@/lib/discord";
@@ -39,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
             deadline: body.deadline,
             industry: body.industry,
             description: body.description,
+            imageUrl: body.imageUrl, // <-- Thêm dòng này
             status:
                 body.status === "closed"
                     ? "closed"
@@ -66,6 +66,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(req: NextRequest, { params }: RouteContext) {
+    // ... (giữ nguyên như cũ)
     try {
         const { id } = await params;
         const hard = req.nextUrl.searchParams.get("hard") === "1";

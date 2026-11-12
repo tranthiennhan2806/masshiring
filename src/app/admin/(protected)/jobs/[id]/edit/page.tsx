@@ -1,10 +1,10 @@
-// src/app/admin/jobs/[id]/edit/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 
-const industries = [
+const INDUSTRIES = [
     "Logistics, TMĐT",
     "Sản xuất, kho vận",
     "F&B",
@@ -22,252 +22,274 @@ const EMPLOYMENT_TYPES = [
     { value: "Thực tập", label: "Thực tập" },
 ];
 
-type Job = {
-    id: string;
-    title: string;
-    salary: string;
-    location: string;
-    type: string;
-    quantity: number;
-    deadline: string;
-    industry: string;
-    description: string;
-    status: "active" | "closed";
-    createdAt: string;
-};
-
-function toDateInput(value: string): string {
-    if (!value) return "";
-    // Nếu đã đúng format YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    // Nếu là dd/mm/yyyy
-    const m = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (m) {
-        const [, d, mo, y] = m;
-        return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
-    }
-    // Fallback: parse Date
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-    return "";
-}
-
 export default function EditJobPage() {
-    const params = useParams();
     const router = useRouter();
+    const params = useParams();
     const id = params?.id as string;
 
-    const [job, setJob] = useState<Job | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
 
+    const [formData, setFormData] = useState({
+        title: "",
+        salary: "",
+        location: "",
+        type: "",
+        quantity: 1,
+        deadline: "",
+        industry: "",
+        description: "",
+        imageUrl: "",
+        status: "active",
+    });
+
+    // 1. Load dữ liệu cũ
     useEffect(() => {
-        fetch(`/api/jobs/${id}`, { cache: "no-store" })
-            .then((r) => r.json())
-            .then((d) => {
-                if (d.job) setJob(d.job);
-                else setError(d.error || "Không tìm thấy tin");
-                setLoading(false);
+        if (!id) return;
+        fetch(`/api/jobs/${id}`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.job) {
+                    setFormData({
+                        title: data.job.title || "",
+                        salary: data.job.salary || "",
+                        location: data.job.location || "",
+                        type: data.job.type || "",
+                        quantity: data.job.quantity || 1,
+                        deadline: data.job.deadline || "",
+                        industry: data.job.industry || "",
+                        description: data.job.description || "",
+                        imageUrl: data.job.imageUrl || "", // <-- Load trường ảnh
+                        status: data.job.status || "active",
+                    });
+                } else {
+                    setError("Không tìm thấy công việc");
+                }
             })
-            .catch(() => setLoading(false));
+            .catch(() => setError("Lỗi khi tải dữ liệu"))
+            .finally(() => setLoading(false));
     }, [id]);
 
-    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    ) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: name === "quantity" ? Number(value) : value,
+        }));
+    };
+
+    // 2. Submit cập nhật
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setSaving(true);
         setError("");
-
-        const fd = new FormData(e.currentTarget);
-
-        const salaryRaw = String(fd.get("salary") || "").replace(/[^\d]/g, "");
-        if (!salaryRaw) {
-            setError("Mức lương phải là số (VD: 16000000)");
-            setSaving(false);
-            return;
-        }
-
-        const body = {
-            title: fd.get("title"),
-            salary: salaryRaw,
-            location: fd.get("location"),
-            type: fd.get("type"),
-            quantity: Number(fd.get("quantity")) || 0,
-            deadline: fd.get("deadline"),
-            industry: fd.get("industry"),
-            description: fd.get("description"),
-            status: fd.get("status"),
-        };
 
         try {
             const res = await fetch(`/api/jobs/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
+                body: JSON.stringify(formData),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Cập nhật thất bại");
+
+            if (!res.ok) throw new Error((await res.json()).error || "Cập nhật thất bại");
             router.push("/admin/jobs");
             router.refresh();
         } catch (err: any) {
             setError(err.message);
-        } finally {
             setSaving(false);
         }
     }
 
-    if (loading)
-        return <div className="mt-10 text-center text-sm text-gray-500">Đang tải...</div>;
-    if (!job)
-        return (
-            <div className="mt-10 text-center text-sm text-red-600">
-                {error || "Không tìm thấy tin"}
-            </div>
-        );
+    if (loading) {
+        return <div className="p-10 text-center text-gray-500">Đang tải dữ liệu...</div>;
+    }
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sửa tin tuyển dụng</h1>
-            <p className="mt-1 text-sm text-gray-500">Job ID: {job.id}</p>
+        <div className="max-w-7xl mx-auto">
+            <div className="mb-6 flex items-center justify-between">
+                <h1 className="text-2xl font-bold text-gray-900">Chỉnh sửa tin tuyển dụng</h1>
+                <Link href="/admin/jobs" className="text-gray-500 hover:underline">
+                    &larr; Quay lại danh sách
+                </Link>
+            </div>
 
-            <form
-                onSubmit={handleSubmit}
-                className="mt-8 max-w-2xl space-y-5 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-200"
-            >
-                <div>
-                    <label className="block text-sm font-medium">Tên vị trí *</label>
-                    <input
-                        name="title"
-                        required
-                        defaultValue={job.title}
-                        className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                    />
-                </div>
+            {error && (
+                <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            )}
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm font-medium">Mức lương (VNĐ) *</label>
-                        <input
-                            name="salary"
-                            type="number"
-                            min={0}
-                            step={1000}
-                            required
-                            defaultValue={String(job.salary || "").replace(/[^\d]/g, "")}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                            placeholder="16000000"
-                        />
-                        <p className="mt-1 text-xs text-gray-500">Nhập số, VD: 16000000</p>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+                {/* CỘT TRÁI: FORM */}
+                <form onSubmit={handleSubmit} className="lg:col-span-7 space-y-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Tiêu đề công việc *</label>
+                            <input
+                                required
+                                name="title"
+                                value={formData.title}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Mức lương</label>
+                            <input
+                                name="salary"
+                                value={formData.salary}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Số lượng</label>
+                            <input
+                                type="number"
+                                name="quantity"
+                                min={1}
+                                value={formData.quantity}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Địa điểm *</label>
+                            <input
+                                required
+                                name="location"
+                                value={formData.location}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Hạn nộp</label>
+                            <input
+                                type="date"
+                                name="deadline"
+                                value={formData.deadline}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Ngành nghề</label>
+                            <select
+                                name="industry"
+                                value={formData.industry}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            >
+                                <option value="">Chọn...</option>
+                                {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Hình thức</label>
+                            <select
+                                name="type"
+                                value={formData.type}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            >
+                                <option value="">Chọn...</option>
+                                {EMPLOYMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                                URL Hình ảnh <span className="text-gray-400 font-normal">(Tuỳ chọn)</span>
+                            </label>
+                            <input
+                                name="imageUrl"
+                                value={formData.imageUrl}
+                                onChange={handleChange}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                                placeholder="https://example.com/banner.jpg"
+                            />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700">Mô tả công việc</label>
+                            <textarea
+                                name="description"
+                                value={formData.description}
+                                onChange={handleChange}
+                                rows={6}
+                                className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                            />
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium">Số lượng</label>
-                        <input
-                            name="quantity"
-                            type="number"
-                            min={0}
-                            defaultValue={job.quantity}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        />
+
+                    <div className="flex justify-end pt-4 border-t">
+                        <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">
+                            {saving ? "Đang lưu..." : "Lưu thay đổi"}
+                        </button>
                     </div>
-                </div>
+                </form>
 
-                <div>
-                    <label className="block text-sm font-medium">Địa điểm *</label>
-                    <input
-                        name="location"
-                        required
-                        defaultValue={job.location}
-                        className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                    />
-                </div>
+                {/* CỘT PHẢI: PREVIEW */}
+                <div className="hidden lg:col-span-5 lg:block">
+                    <div className="sticky top-6">
+                        <div className="mb-2 text-sm font-medium text-gray-500 uppercase tracking-wider">
+                            Bản xem trước (Preview)
+                        </div>
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm font-medium">Hình thức *</label>
-                        <select
-                            name="type"
-                            required
-                            defaultValue={job.type || ""}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        >
-                            <option value="" disabled>
-                                Chọn hình thức...
-                            </option>
-                            {EMPLOYMENT_TYPES.map((t) => (
-                                <option key={t.value} value={t.value}>
-                                    {t.label}
-                                </option>
-                            ))}
-                            {/* Nếu giá trị cũ không nằm trong danh sách, vẫn hiển thị */}
-                            {job.type && !EMPLOYMENT_TYPES.some((t) => t.value === job.type) && (
-                                <option value={job.type}>{job.type}</option>
+                        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm">
+                            {/* CHỈ HIỂN THỊ ẢNH KHI CÓ URL */}
+                            {formData.imageUrl && (
+                                <div className="aspect-[16/9] w-full bg-gray-100 relative">
+                                    <img
+                                        src={formData.imageUrl}
+                                        alt="Preview"
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                    />
+                                </div>
                             )}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Hạn nộp *</label>
-                        <input
-                            name="deadline"
-                            type="date"
-                            required
-                            defaultValue={toDateInput(job.deadline)}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        />
-                    </div>
-                </div>
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm font-medium">Nhóm ngành</label>
-                        <select
-                            name="industry"
-                            defaultValue={job.industry || ""}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        >
-                            <option value="">Chọn...</option>
-                            {industries.map((i) => (
-                                <option key={i} value={i}>
-                                    {i}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Trạng thái</label>
-                        <select
-                            name="status"
-                            defaultValue={job.status}
-                            className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                        >
-                            <option value="active">Đang tuyển</option>
-                            <option value="closed">Đã đóng</option>
-                        </select>
+                            <div className="p-6">
+                                <div className="text-xs font-medium text-brand">
+                                    {formData.industry || "Ngành nghề"}
+                                </div>
+                                <h2 className="mt-1 text-xl font-semibold text-gray-900 break-words">
+                                    {formData.title || "Tiêu đề công việc"}
+                                </h2>
+
+                                <div className="mt-4 flex flex-wrap gap-3 text-sm text-gray-600">
+                                    {formData.salary && <span>💰 {formData.salary}</span>}
+                                    <span>📍 {formData.location || "Địa điểm"}</span>
+                                    {formData.type && <span>🕐 {formData.type}</span>}
+                                    {formData.quantity > 0 && <span>👥 {formData.quantity} người</span>}
+                                </div>
+
+                                {formData.deadline && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
+                                        Hạn nộp: {formData.deadline}
+                                    </div>
+                                )}
+
+                                {formData.description && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Mô tả công việc</h3>
+                                        <p className="text-sm text-gray-600 whitespace-pre-line line-clamp-6">
+                                            {formData.description}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div>
-                    <label className="block text-sm font-medium">Mô tả công việc</label>
-                    <textarea
-                        name="description"
-                        rows={8}
-                        defaultValue={job.description}
-                        className="mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                    />
-                </div>
-
-                {error && (
-                    <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-                )}
-
-                <div className="flex gap-3">
-                    <button type="submit" disabled={saving} className="btn-primary">
-                        {saving ? "Đang lưu..." : "Lưu thay đổi"}
-                    </button>
-                    <button type="button" onClick={() => router.back()} className="btn-secondary">
-                        Hủy
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     );
 }

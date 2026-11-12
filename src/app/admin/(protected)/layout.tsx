@@ -16,10 +16,12 @@ export default async function ProtectedAdminLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b bg-white">
-        <div className="container-main flex items-center justify-between py-3">
-          <nav className="flex gap-4 text-sm">
+        <div className="container-main flex flex-wrap items-center justify-between py-3 gap-y-3">
+          {/* Thêm flex-wrap để tab tự xuống dòng nếu màn hình nhỏ */}
+          <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             <Link href="/admin" className="font-semibold">Dashboard</Link>
             <Link href="/admin/jobs">Jobs</Link>
+            <Link href="/admin/posts">Bài Viết</Link> {/* <-- Thêm tab Posts ở đây */}
             <Link href="/admin/leads">Leads</Link>
             {isSuper && (
               <>

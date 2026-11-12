@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { title, salary, location, type, quantity, deadline, industry, description, status } = body;
+    // Thêm imageUrl vào destructuring
+    const { title, salary, location, type, quantity, deadline, industry, description, imageUrl, status } = body;
 
     if (!title || !location) {
       return NextResponse.json({ error: "Title and location are required" }, { status: 400 });
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
       deadline: deadline || "",
       industry: industry || "",
       description: description || "",
+      imageUrl: imageUrl || "", // <-- Thêm dòng này
       status: status === "closed" ? "closed" : "active",
     });
 

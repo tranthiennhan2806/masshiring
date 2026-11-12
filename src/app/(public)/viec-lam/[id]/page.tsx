@@ -14,6 +14,7 @@ type Job = {
   deadline: string;
   industry: string;
   description: string;
+  imageUrl?: string;
   status: string;
 };
 
@@ -156,6 +157,17 @@ export default function JobDetailPage() {
           {" / "}
           <span className="text-gray-900">{job.title}</span>
         </div>
+
+        {/* ẨN HOÀN TOÀN NẾU KHÔNG CÓ IMAGEURL, GIỚI HẠN CHIỀU CAO 400PX */}
+        {job.imageUrl && (
+          <div className="mb-8 w-full overflow-hidden rounded-2xl bg-gray-100 relative">
+            <img
+              src={job.imageUrl}
+              alt={job.title}
+              className="w-full object-cover max-h-[400px]"
+            />
+          </div>
+        )}
 
         <div className="grid gap-10 lg:grid-cols-3">
           <div className="lg:col-span-2">

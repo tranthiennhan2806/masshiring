@@ -12,6 +12,7 @@ type Job = {
   quantity: string;
   deadline: string;
   industry: string;
+  imageUrl?: string; // Đã thêm để dùng cho thumbnail
   status: string;
 };
 
@@ -36,7 +37,16 @@ export default function ViecLamPage() {
   const [type, setType] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // Trạng thái chế độ xem: 'list' hoặc 'grid'
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
   useEffect(() => {
+    // Khôi phục chế độ xem từ localStorage khi load trang
+    const savedMode = localStorage.getItem("viec-lam-view") as "list" | "grid";
+    if (savedMode === "grid" || savedMode === "list") {
+      setViewMode(savedMode);
+    }
+
     fetch("/api/jobs")
       .then((r) => r.json())
       .then((d) => {
@@ -45,6 +55,11 @@ export default function ViecLamPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleViewChange = (mode: "list" | "grid") => {
+    setViewMode(mode);
+    localStorage.setItem("viec-lam-view", mode); // Lưu lại lựa chọn
+  };
 
   const types = useMemo(
     () => Array.from(new Set(jobs.map((j) => j.type).filter(Boolean))),
@@ -80,7 +95,7 @@ export default function ViecLamPage() {
           Việc thật, gắn với dự án đã ký. Người lao động không mất bất kỳ khoản phí nào.
         </p>
 
-        {/* Search + filter toggle */}
+        {/* Search + filter toggle + view mode toggle */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <input
@@ -91,21 +106,49 @@ export default function ViecLamPage() {
             />
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((v) => !v)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            ⚙ Bộ lọc
-            {activeFilterCount > 0 && (
-              <span className="rounded-full bg-brand px-2 py-0.5 text-xs text-white">
-                {activeFilterCount}
-              </span>
-            )}
-            <span className={`transition ${filtersOpen ? "rotate-180" : ""}`}>▾</span>
-          </button>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              className="inline-flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              ⚙ Bộ lọc
+              {activeFilterCount > 0 && (
+                <span className="rounded-full bg-brand px-2 py-0.5 text-xs text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+              <span className={`transition ${filtersOpen ? "rotate-180" : ""}`}>▾</span>
+            </button>
+
+            {/* Nút chuyển chế độ xem */}
+            <div className="flex items-center rounded-xl border border-gray-300 bg-white p-1">
+              <button
+                onClick={() => handleViewChange("list")}
+                className={`rounded-lg p-1.5 transition ${viewMode === "list" ? "bg-brand/10 text-brand" : "text-gray-400 hover:text-gray-700"
+                  }`}
+                title="Xem dạng dòng"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleViewChange("grid")}
+                className={`rounded-lg p-1.5 transition ${viewMode === "grid" ? "bg-brand/10 text-brand" : "text-gray-400 hover:text-gray-700"
+                  }`}
+                title="Xem dạng lưới"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
+        {/* Bộ lọc (giữ nguyên) */}
         {filtersOpen && (
           <div className="mt-3 grid grid-cols-1 gap-3 rounded-2xl bg-white p-4 ring-1 ring-gray-200 sm:grid-cols-3">
             <div>
@@ -167,26 +210,52 @@ export default function ViecLamPage() {
             </Link>
           </div>
         ) : (
-          <div className="mt-10 space-y-4">
+          /* RENDER THEO CHẾ ĐỘ ĐÃ CHỌN */
+          <div className={viewMode === "grid" ? "mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "mt-10 space-y-4"}>
             {filtered.map((job) => (
               <Link
                 key={job.id}
                 href={`/viec-lam/${job.id}`}
-                className="block rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-200 transition hover:ring-brand/30"
+                className={`group flex flex-col block rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 transition hover:ring-brand/30 hover:shadow-md overflow-hidden`}
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
+                {/* Nếu là chế độ Lưới và có ảnh, hiển thị thumbnail trên cùng */}
+                {viewMode === "grid" && job.imageUrl && (
+                  <div className="aspect-[16/9] w-full bg-gray-100 relative overflow-hidden">
+                    <img
+                      src={job.imageUrl}
+                      alt={job.title}
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  </div>
+                )}
+
+                <div className={`p-6 flex-1 flex flex-col justify-between ${viewMode === "grid" ? "" : ""}`}>
                   <div>
-                    <div className="text-xs font-medium text-brand">{job.industry}</div>
-                    <h2 className="mt-1 text-lg font-semibold text-gray-900">{job.title}</h2>
-                    <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-brand">{job.industry}</div>
+                        <h2 className="mt-1 text-lg font-semibold text-gray-900 truncate">{job.title}</h2>
+                      </div>
+                      {job.deadline && viewMode === "list" && (
+                        <div className="text-right text-sm text-gray-500 whitespace-nowrap">
+                          Hạn nộp: {job.deadline}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-600">
                       {job.salary && <span>💰 {job.salary}</span>}
                       <span>📍 {job.location}</span>
                       {job.type && <span>🕐 {job.type}</span>}
                       {job.quantity && <span>👥 {job.quantity} người</span>}
                     </div>
                   </div>
-                  {job.deadline && (
-                    <div className="text-right text-sm text-gray-500">Hạn nộp: {job.deadline}</div>
+
+                  {/* Nếu là chế độ Lưới, hiển thị Deadline ở dưới cùng */}
+                  {viewMode === "grid" && job.deadline && (
+                    <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                      Hạn nộp: {job.deadline}
+                    </div>
                   )}
                 </div>
               </Link>
